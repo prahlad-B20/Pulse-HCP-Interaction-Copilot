@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pulse — HCP Interaction Copilot</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+/* ============ DESIGN TOKENS ============ */
+:root{
+  --ink:#12172B;
+  --ink-soft:#4B5169;
+  --muted:#8A90A6;
+  --bg:#F1F3F8;
+  --surface:#FFFFFF;
+  --surface-raised:#FFFFFF;
+  --border:#E3E6EF;
+  --border-soft:#EDEFF5;
+  --primary:#2B3A87;
+  --primary-dark:#202C68;
+  --primary-light:#E9EBFA;
+  --teal:#0E9488;
+  --teal-light:#E1F5F2;
+  --amber:#C98A2C;
+  --amber-light:#FBF0DE;
+  --rose:#B5504B;
+  --rose-light:#F8E9E8;
+  --shadow-sm:0 1px 2px rgba(18,23,43,0.06);
+  --shadow-md:0 6px 20px -6px rgba(18,23,43,0.14);
+  --shadow-lg:0 20px 45px -12px rgba(18,23,43,0.22);
+  --radius:12px;
+  --radius-sm:8px;
+  --ease:cubic-bezier(.4,0,.2,1);
+}
+*{box-sizing:border-box;}
+html{scroll-behavior:smooth;}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:'Inter',-apple-system,sans-serif;
+  -webkit-font-smoothing:antialiased;
+}
+h1,h2,h3,.display{font-family:'Space Grotesk',sans-serif;}
+.mono{font-family:'IBM Plex Mono',monospace;}
+::selection{background:var(--primary-light);}
+:focus-visible{outline:2px solid var(--primary);outline-offset:2px;border-radius:4px;}
+
+/* subtle pulse-line background texture in the app bar */
+.pulse-bg{
+  position:absolute;inset:0;overflow:hidden;pointer-events:none;opacity:.14;
+}
+.pulse-bg svg{width:200%;height:100%;animation:driftLine 22s linear infinite;}
+@keyframes driftLine{ from{transform:translateX(0);} to{transform:translateX(-50%);} }
+
+/* ============ APP BAR ============ */
+.appbar{
+  position:sticky;top:0;z-index:40;
+  background:linear-gradient(135deg,var(--primary-dark),var(--primary) 65%);
+  color:#fff;position:relative;overflow:hidden;
+  box-shadow:var(--shadow-md);
+}
+.appbar-inner{
+  position:relative;z-index:1;
+  max-width:1320px;margin:0 auto;padding:16px 28px;
+  display:flex;align-items:center;justify-content:space-between;gap:20px;
+}
+.brand{display:flex;align-items:center;gap:10px;}
+.brand-mark{width:34px;height:34px;flex:none;}
+.brand-text .name{font-size:19px;font-weight:700;letter-spacing:-0.01em;line-height:1.1;}
+.brand-text .tag{font-size:11.5px;color:rgba(255,255,255,.68);letter-spacing:.02em;}
+.appbar-meta{display:flex;align-items:center;gap:18px;font-size:13px;color:rgba(255,255,255,.85);}
+.appbar-meta .rep{display:flex;align-items:center;gap:8px;}
+.avatar{width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,.18);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:600;}
+
+/* ============ LAYOUT ============ */
+.shell{max-width:1320px;margin:0 auto;padding:28px;}
+.grid{display:grid;grid-template-columns:1.35fr 0.9fr;gap:22px;align-items:start;}
+@media (max-width:980px){ .grid{grid-template-columns:1fr;} }
+
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:22px 24px;box-shadow:var(--shadow-sm);
+  transition:box-shadow .25s var(--ease);
+}
+.card:hover{box-shadow:var(--shadow-md);}
+.card + .card{margin-top:20px;}
+
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.card-head h2{font-size:16.5px;font-weight:600;margin:0;display:flex;align-items:center;gap:9px;}
+.card-head .icon-badge{width:30px;height:30px;border-radius:9px;background:var(--primary-light);color:var(--primary);display:flex;align-items:center;justify-content:center;font-size:15px;}
+.card-head .sub{font-size:12px;color:var(--muted);margin-top:2px;font-weight:400;}
+
+/* ============ FORM ============ */
+.field{margin-bottom:16px;position:relative;}
+.field label{display:block;font-size:11.5px;font-weight:600;color:var(--ink-soft);margin-bottom:6px;letter-spacing:.01em;text-transform:uppercase;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+@media (max-width:560px){ .row2{grid-template-columns:1fr;} }
+
+input,select,textarea{
+  width:100%;padding:10px 12px;border:1.5px solid var(--border);border-radius:var(--radius-sm);
+  font-size:13.5px;font-family:'Inter',sans-serif;background:#FCFCFD;color:var(--ink);
+  transition:border-color .18s var(--ease), box-shadow .18s var(--ease), background .18s var(--ease);
+}
+input:hover,select:hover,textarea:hover{border-color:#C7CCDC;}
+input:focus,select:focus,textarea:focus{
+  outline:none;border-color:var(--primary);background:#fff;
+  box-shadow:0 0 0 3.5px var(--primary-light);
+}
+textarea{resize:vertical;min-height:56px;line-height:1.45;}
+
+.suggest{
+  position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:10;
+  background:#fff;border:1px solid var(--border);border-radius:var(--radius-sm);box-shadow:var(--shadow-md);
+  padding:6px;max-height:210px;overflow-y:auto;
+  animation:pop .15s var(--ease);
+}
+@keyframes pop{ from{opacity:0;transform:translateY(-4px);} to{opacity:1;transform:translateY(0);} }
+.suggest div{padding:8px 10px;border-radius:6px;font-size:13px;cursor:pointer;display:flex;justify-content:space-between;}
+.suggest div:hover{background:var(--primary-light);}
+.suggest .spec{color:var(--muted);font-size:11.5px;}
+
+.sentiment-group{display:flex;gap:8px;}
+.sentiment-opt{
+  flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;padding:10px 6px;
+  border:1.5px solid var(--border);border-radius:var(--radius-sm);cursor:pointer;font-size:12px;font-weight:500;
+  transition:all .18s var(--ease);color:var(--muted);
+}
+.sentiment-opt input{display:none;}
+.sentiment-opt .em{font-size:18px;}
+.sentiment-opt.active-pos{border-color:var(--teal);background:var(--teal-light);color:var(--teal);}
+.sentiment-opt.active-neu{border-color:var(--amber);background:var(--amber-light);color:var(--amber);}
+.sentiment-opt.active-neg{border-color:var(--rose);background:var(--rose-light);color:var(--rose);}
+
+.chip-zone{display:flex;flex-wrap:wrap;gap:6px;min-height:34px;align-items:center;margin-bottom:8px;}
+.chip{
+  display:inline-flex;align-items:center;gap:6px;background:var(--primary-light);color:var(--primary);
+  border-radius:20px;padding:5px 6px 5px 12px;font-size:12px;font-weight:500;
+  animation:pop .18s var(--ease);
+}
+.chip button{background:rgba(43,58,135,.12);border:none;color:var(--primary);width:16px;height:16px;border-radius:50%;cursor:pointer;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;transition:background .15s;}
+.chip button:hover{background:rgba(43,58,135,.25);}
+.empty-hint{color:#AEB3C4;font-size:12px;font-style:italic;}
+.ghost-add{
+  border:1.5px dashed var(--border);background:none;color:var(--primary);font-size:12px;font-weight:600;
+  padding:6px 12px;border-radius:20px;cursor:pointer;transition:all .15s var(--ease);
+}
+.ghost-add:hover{background:var(--primary-light);border-color:var(--primary);}
+
+.suggest-box{
+  background:linear-gradient(135deg,var(--primary-light),#fff);border:1px solid var(--border);border-radius:var(--radius-sm);
+  padding:12px 14px;margin-top:6px;
+  animation:pop .2s var(--ease);
+}
+.suggest-box .lbl{font-size:11.5px;font-weight:700;color:var(--primary);text-transform:uppercase;letter-spacing:.03em;margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+.suggest-pill{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid var(--border);border-radius:20px;padding:6px 12px;font-size:12.5px;cursor:pointer;margin:0 6px 6px 0;transition:all .15s var(--ease);}
+.suggest-pill:hover{border-color:var(--primary);color:var(--primary);transform:translateY(-1px);box-shadow:var(--shadow-sm);}
+
+.btn{
+  border:1.5px solid var(--border);background:#fff;border-radius:var(--radius-sm);padding:9px 16px;
+  font-size:13px;font-weight:600;cursor:pointer;color:var(--ink-soft);font-family:'Inter',sans-serif;
+  transition:all .16s var(--ease);
+}
+.btn:hover{border-color:#C7CCDC;background:#FAFBFD;transform:translateY(-1px);}
+.btn:active{transform:translateY(0);}
+.btn-primary{background:var(--primary);border-color:var(--primary);color:#fff;box-shadow:var(--shadow-sm);}
+.btn-primary:hover{background:var(--primary-dark);border-color:var(--primary-dark);box-shadow:var(--shadow-md);}
+.save-row{display:flex;justify-content:flex-end;gap:10px;margin-top:6px;}
+
+/* ============ TIMELINE (signature element) ============ */
+.timeline{position:relative;margin-top:6px;padding-left:26px;}
+.timeline::before{
+  content:'';position:absolute;left:9px;top:6px;bottom:6px;width:2px;
+  background:repeating-linear-gradient(180deg,var(--border) 0 6px, transparent 6px 10px);
+}
+.tl-item{position:relative;margin-bottom:16px;animation:slideIn .3s var(--ease);}
+@keyframes slideIn{ from{opacity:0;transform:translateX(-8px);} to{opacity:1;transform:translateX(0);} }
+.tl-dot{
+  position:absolute;left:-26px;top:4px;width:20px;height:20px;border-radius:50%;
+  border:3px solid #fff;box-shadow:0 0 0 2px var(--border);display:flex;align-items:center;justify-content:center;font-size:9px;
+}
+.tl-dot.pos{background:var(--teal);box-shadow:0 0 0 2px var(--teal);}
+.tl-dot.neu{background:var(--amber);box-shadow:0 0 0 2px var(--amber);}
+.tl-dot.neg{background:var(--rose);box-shadow:0 0 0 2px var(--rose);}
+.tl-card{
+  background:#FCFCFD;border:1px solid var(--border-soft);border-radius:var(--radius-sm);padding:12px 14px;
+  transition:border-color .15s var(--ease), box-shadow .15s var(--ease);
+}
+.tl-card:hover{border-color:var(--border);box-shadow:var(--shadow-sm);}
+.tl-top{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;}
+.tl-top .who{font-weight:600;font-size:13.5px;}
+.tl-top .when{font-size:11px;color:var(--muted);}
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:10.5px;font-weight:700;letter-spacing:.02em;text-transform:uppercase;}
+.badge.pos{background:var(--teal-light);color:var(--teal);}
+.badge.neu{background:var(--amber-light);color:var(--amber);}
+.badge.neg{background:var(--rose-light);color:var(--rose);}
+.tl-body{font-size:12.5px;color:var(--ink-soft);margin-top:6px;line-height:1.5;}
+.tl-meta{font-size:11px;color:var(--muted);margin-top:6px;}
+.tl-actions{margin-top:8px;}
+.tl-actions button{font-size:11px;padding:4px 10px;}
+
+/* ============ CHAT PANEL ============ */
+.chat-card{position:sticky;top:88px;display:flex;flex-direction:column;height:calc(100vh - 112px);min-height:520px;}
+.chat-log{flex:1;overflow-y:auto;padding:4px 2px;margin:2px 0 12px;scroll-behavior:smooth;}
+.chat-log::-webkit-scrollbar{width:6px;}
+.chat-log::-webkit-scrollbar-thumb{background:var(--border);border-radius:10px;}
+.msg{margin-bottom:14px;display:flex;animation:slideIn .25s var(--ease);}
+.msg.user{justify-content:flex-end;}
+.msg .bubble{max-width:86%;padding:10px 13px;border-radius:14px;font-size:13.5px;line-height:1.5;}
+.msg.user .bubble{background:var(--primary);color:#fff;border-bottom-right-radius:4px;}
+.msg.ai .bubble{background:var(--bg);color:var(--ink);border-bottom-left-radius:4px;}
+.msg.tool .bubble{background:var(--amber-light);border:1px solid #EAD6AE;color:#7A5B00;font-size:11.5px;font-family:'IBM Plex Mono',monospace;white-space:pre-wrap;border-radius:8px;max-width:96%;}
+.typing{display:inline-flex;gap:3px;padding:4px 0;}
+.typing span{width:5px;height:5px;border-radius:50%;background:var(--muted);animation:bounce 1.2s infinite ease-in-out;}
+.typing span:nth-child(2){animation-delay:.15s;} .typing span:nth-child(3){animation-delay:.3s;}
+@keyframes bounce{ 0%,60%,100%{transform:translateY(0);opacity:.5;} 30%{transform:translateY(-4px);opacity:1;} }
+
+.chat-input-row{display:flex;gap:8px;}
+.chat-input-row input{flex:1;}
+.send-btn{
+  width:38px;height:38px;border-radius:10px;background:var(--primary);border:none;color:#fff;
+  display:flex;align-items:center;justify-content:center;cursor:pointer;flex:none;
+  transition:all .15s var(--ease);
+}
+.send-btn:hover{background:var(--primary-dark);transform:scale(1.05);}
+.chat-hint{font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;}
+
+/* toast */
+.toast{
+  position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:var(--ink);color:#fff;padding:11px 20px;border-radius:30px;font-size:13px;font-weight:500;
+  box-shadow:var(--shadow-lg);opacity:0;pointer-events:none;transition:all .3s var(--ease);z-index:100;
+  display:flex;align-items:center;gap:8px;
+}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast .dot{width:7px;height:7px;border-radius:50%;background:var(--teal);}
+
+@media (max-width:980px){
+  .chat-card{position:relative;top:0;height:560px;}
+  .shell{padding:16px;}
+  .appbar-inner{padding:14px 18px;}
+  .appbar-meta .rep-name{display:none;}
+}
+</style>
+</head>
+<body>
+
+<div class="appbar">
+  <div class="pulse-bg">
+    <svg viewBox="0 0 800 80" preserveAspectRatio="none"><polyline points="0,40 120,40 145,10 170,70 195,40 800,40" fill="none" stroke="white" stroke-width="2"/><polyline points="800,40 920,40 945,10 970,70 995,40 1600,40" fill="none" stroke="white" stroke-width="2"/></svg>
+  </div>
+  <div class="appbar-inner">
+    <div class="brand">
+      <svg class="brand-mark" viewBox="0 0 40 40"><circle cx="20" cy="20" r="19" fill="rgba(255,255,255,0.12)"/><polyline points="7,21 14,21 17,13 22,28 26,21 33,21" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <div class="brand-text">
+        <div class="name">Pulse</div>
+        <div class="tag">HCP Interaction Copilot</div>
+      </div>
+    </div>
+    <div class="appbar-meta">
+      <div class="rep">
+        <div class="avatar">RS</div>
+        <span class="rep-name">Riya Sen · North Zone</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="shell">
+  <div class="grid">
+    <!-- LEFT COLUMN -->
+    <div>
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2><span class="icon-badge">📋</span> Log Interaction</h2>
+            <div class="sub">Capture a meeting, call, or touchpoint with an HCP</div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>HCP Name</label>
+          <input id="f_hcp" placeholder="Search or select HCP..." autocomplete="off">
+          <div id="hcpSuggest" class="suggest" style="display:none;"></div>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>Interaction Type</label>
+            <select id="f_type">
+              <option>Meeting</option><option>Call</option><option>Email</option><option>Conference</option><option>Sample Drop</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Date &amp; Time</label>
+            <div class="row2" style="gap:8px;">
+              <input id="f_date" type="date">
+              <input id="f_time" type="time">
+            </div>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Attendees</label>
+          <input id="f_attendees" placeholder="Enter names or search...">
+        </div>
+
+        <div class="field">
+          <label>Topics Discussed</label>
+          <textarea id="f_topics" placeholder="Enter key discussion points..."></textarea>
+        </div>
+
+        <div class="row2">
+          <div class="field">
+            <label>Materials Shared</label>
+            <div id="materialsList" class="chip-zone"><span class="empty-hint">None added</span></div>
+            <button class="ghost-add" onclick="addMaterialPrompt()">+ Add material</button>
+          </div>
+          <div class="field">
+            <label>Samples Distributed</label>
+            <div id="samplesList" class="chip-zone"><span class="empty-hint">None added</span></div>
+            <button class="ghost-add" onclick="addSamplePrompt()">+ Add sample</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Observed / Inferred Sentiment</label>
+          <div class="sentiment-group" id="sentimentGroup">
+            <label class="sentiment-opt" data-v="Positive"><input type="radio" name="sentiment" value="Positive"><span class="em">🙂</span>Positive</label>
+            <label class="sentiment-opt active-neu" data-v="Neutral"><input type="radio" name="sentiment" value="Neutral" checked><span class="em">😐</span>Neutral</label>
+            <label class="sentiment-opt" data-v="Negative"><input type="radio" name="sentiment" value="Negative"><span class="em">🙁</span>Negative</label>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Outcomes</label>
+          <textarea id="f_outcomes" placeholder="Key outcomes or agreements..."></textarea>
+        </div>
+
+        <div class="field">
+          <label>Follow-up Actions</label>
+          <textarea id="f_followup" placeholder="Enter next steps or tasks..."></textarea>
+        </div>
+
+        <div id="aiFollowups" class="suggest-box" style="display:none;">
+          <div class="lbl">✨ AI suggested follow-ups</div>
+          <div id="aiFollowupItems"></div>
+        </div>
+
+        <div class="save-row">
+          <button class="btn" onclick="clearForm()">Clear</button>
+          <button class="btn btn-primary" onclick="saveInteraction(true)">Save Interaction</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <div>
+            <h2><span class="icon-badge">🕓</span> Interaction Timeline</h2>
+            <div class="sub">Recent touchpoints, most recent first</div>
+          </div>
+        </div>
+        <div id="timeline" class="timeline"><span class="empty-hint">Nothing logged yet — your first interaction will appear here.</span></div>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="card chat-card">
+      <div class="card-head">
+        <div>
+          <h2><span class="icon-badge">🤖</span> AI Assistant</h2>
+          <div class="sub">Log or edit interactions by chatting</div>
+        </div>
+      </div>
+      <div id="chatLog" class="chat-log"></div>
+      <div class="chat-input-row">
+        <input id="chatInput" placeholder='Try: "Met Dr. Sharma, discussed Product X, positive"' onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="send-btn" onclick="sendChat()">➤</button>
+      </div>
+      <div class="chat-hint">The assistant can log new interactions, edit past ones, search HCPs, add materials/samples, and suggest follow-ups.</div>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast"><span class="dot"></span><span id="toastMsg"></span></div>
+
+<script>
+/* ---------------- MOCK DATA ---------------- */
+let HCP_DB = [
+  {id:"h1", name:"Dr. Anita Sharma", specialty:"Cardiology"},
+  {id:"h2", name:"Dr. Rohan Mehta", specialty:"Oncology"},
+  {id:"h3", name:"Dr. Priya Nair", specialty:"Endocrinology"},
+  {id:"h4", name:"Dr. James Carter", specialty:"General Medicine"},
+];
+let MATERIALS_DB = ["Product X Efficacy Deck", "OncoBrief Phase III PDF", "Cardio Safety Brochure", "Patient Education Flyer"];
+let SAMPLES_DB = ["Product X 10mg (sample pack)", "Product Y Starter Kit", "Product Z Trial Vial"];
+
+let interactions = [];
+let currentMaterials = [];
+let currentSamples = [];
+let idCounter = 1;
+
+function today(){ return new Date().toISOString().slice(0,10); }
+document.getElementById('f_date').value = today();
+document.getElementById('f_time').value = new Date().toTimeString().slice(0,5);
+
+/* sentiment pill styling */
+document.querySelectorAll('.sentiment-opt input').forEach(r=>{
+  r.addEventListener('change', updateSentimentStyle);
+});
+function updateSentimentStyle(){
+  document.querySelectorAll('.sentiment-opt').forEach(el=>{
+    el.classList.remove('active-pos','active-neu','active-neg');
+    const checked = el.querySelector('input').checked;
+    if(checked){
+      const v = el.dataset.v;
+      el.classList.add(v==='Positive'?'active-pos':v==='Negative'?'active-neg':'active-neu');
+    }
+  });
+}
+
+/* ---------------- HCP search ---------------- */
+document.getElementById('f_hcp').addEventListener('input', (e)=>{
+  const q = e.target.value.toLowerCase();
+  const box = document.getElementById('hcpSuggest');
+  if(!q){ box.style.display='none'; return; }
+  const matches = HCP_DB.filter(h=>h.name.toLowerCase().includes(q));
+  if(matches.length===0){ box.style.display='none'; return; }
+  box.innerHTML = matches.map(h=>`<div onclick="pickHcp('${h.id}')"><span>${h.name}</span><span class="spec">${h.specialty}</span></div>`).join('');
+  box.style.display='block';
+});
+document.addEventListener('click', (e)=>{
+  if(!e.target.closest('#f_hcp') && !e.target.closest('#hcpSuggest')) document.getElementById('hcpSuggest').style.display='none';
+});
+function pickHcp(id){
+  const h = HCP_DB.find(x=>x.id===id);
+  document.getElementById('f_hcp').value = h.name;
+  document.getElementById('hcpSuggest').style.display='none';
+}
+
+/* ---------------- chips ---------------- */
+function renderChipList(containerId, arr, removeFn){
+  const el = document.getElementById(containerId);
+  if(arr.length===0){ el.innerHTML = `<span class="empty-hint">None added</span>`; return; }
+  el.innerHTML = arr.map((m,i)=>`<span class="chip">${m}<button onclick="${removeFn}(${i})">×</button></span>`).join('');
+}
+function removeMaterial(i){ currentMaterials.splice(i,1); renderChipList('materialsList', currentMaterials, 'removeMaterial'); }
+function removeSample(i){ currentSamples.splice(i,1); renderChipList('samplesList', currentSamples, 'removeSample'); }
+function addMaterialPrompt(){ const val = prompt("Search materials:\n" + MATERIALS_DB.join('\n')); if(val) toolAddMaterial(val); }
+function addSamplePrompt(){ const val = prompt("Search samples:\n" + SAMPLES_DB.join('\n')); if(val) toolAddSample(val); }
+
+function clearForm(){
+  document.getElementById('f_hcp').value='';
+  document.getElementById('f_type').value='Meeting';
+  document.getElementById('f_date').value=today();
+  document.getElementById('f_attendees').value='';
+  document.getElementById('f_topics').value='';
+  document.getElementById('f_outcomes').value='';
+  document.getElementById('f_followup').value='';
+  currentMaterials=[]; currentSamples=[];
+  renderChipList('materialsList', currentMaterials,'removeMaterial');
+  renderChipList('samplesList', currentSamples,'removeSample');
+  document.getElementById('aiFollowups').style.display='none';
+  document.querySelector('input[name=sentiment][value=Neutral]').checked = true;
+  updateSentimentStyle();
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  t.classList.add('show');
+  clearTimeout(window._toastTimer);
+  window._toastTimer = setTimeout(()=>t.classList.remove('show'), 2600);
+}
+
+function saveInteraction(fromButton){
+  const sentiment = document.querySelector('input[name=sentiment]:checked').value;
+  const rec = {
+    id: idCounter++,
+    hcp: document.getElementById('f_hcp').value || "(unnamed HCP)",
+    type: document.getElementById('f_type').value,
+    date: document.getElementById('f_date').value,
+    time: document.getElementById('f_time').value,
+    attendees: document.getElementById('f_attendees').value,
+    topics: document.getElementById('f_topics').value,
+    materials: [...currentMaterials],
+    samples: [...currentSamples],
+    sentiment,
+    outcomes: document.getElementById('f_outcomes').value,
+    followup: document.getElementById('f_followup').value,
+  };
+  interactions.push(rec);
+  renderTimeline();
+  if(fromButton) showToast("Interaction saved to timeline");
+  return rec;
+}
+
+function sentimentClass(s){ return s==='Positive'?'pos':(s==='Negative'?'neg':'neu'); }
+
+function renderTimeline(){
+  const el = document.getElementById('timeline');
+  if(interactions.length===0){ el.innerHTML = `<span class="empty-hint">Nothing logged yet — your first interaction will appear here.</span>`; return; }
+  el.innerHTML = interactions.slice().reverse().map(r=>{
+    const sc = sentimentClass(r.sentiment);
+    return `<div class="tl-item">
+      <div class="tl-dot ${sc}"></div>
+      <div class="tl-card">
+        <div class="tl-top">
+          <span class="who">${r.hcp} <span class="mono" style="color:var(--muted);font-weight:400;font-size:11px;">· ${r.type}</span></span>
+          <span class="badge ${sc}">${r.sentiment}</span>
+        </div>
+        <div class="tl-body">${r.topics || '<span class="empty-hint">No topics recorded</span>'}</div>
+        ${(r.materials.length||r.samples.length) ? `<div class="tl-meta">${r.materials.length?`Materials: ${r.materials.join(', ')}`:''}${r.materials.length&&r.samples.length?' · ':''}${r.samples.length?`Samples: ${r.samples.join(', ')}`:''}</div>` : ''}
+        <div class="tl-meta mono">${r.date} ${r.time} · #${String(r.id).padStart(3,'0')}</div>
+        <div class="tl-actions"><button class="btn" onclick="editPrompt(${r.id})">Edit</button></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function editPrompt(id){
+  const field = prompt("Which field to edit? (topics, outcomes, followup, sentiment, type, attendees)");
+  if(!field) return;
+  const val = prompt("New value for '"+field+"':");
+  if(val===null) return;
+  toolEditInteraction({interaction_id:id, field, new_value:val});
+}
+
+/* ============================================================
+   LANGGRAPH-STYLE AGENT — 5 TOOLS (client-side stand-ins for
+   what would be @tool functions inside a LangGraph agent graph)
+   ============================================================ */
+function toolLogInteraction(args){
+  document.getElementById('f_hcp').value = args.hcp_name || '';
+  if(args.interaction_type) document.getElementById('f_type').value = args.interaction_type;
+  if(args.date) document.getElementById('f_date').value = args.date;
+  if(args.time) document.getElementById('f_time').value = args.time;
+  if(args.attendees) document.getElementById('f_attendees').value = args.attendees;
+  if(args.topics) document.getElementById('f_topics').value = args.topics;
+  if(args.outcomes) document.getElementById('f_outcomes').value = args.outcomes;
+  if(args.follow_up_actions) document.getElementById('f_followup').value = args.follow_up_actions;
+  if(args.sentiment){
+    const r = document.querySelector(`input[name=sentiment][value=${args.sentiment}]`);
+    if(r){ r.checked = true; updateSentimentStyle(); }
+  }
+  const rec = saveInteraction(false);
+  showToast("Logged interaction with " + rec.hcp);
+  return {status:"logged", interaction_id: rec.id, summary: `${rec.hcp} — ${rec.type} on ${rec.date}, sentiment: ${rec.sentiment}`};
+}
+function toolEditInteraction(args){
+  const rec = interactions.find(r=>r.id===Number(args.interaction_id));
+  if(!rec) return {status:"error", message:"Interaction not found"};
+  const field = args.field;
+  if(!(field in rec)) return {status:"error", message:`Unknown field '${field}'`};
+  rec[field] = args.new_value;
+  renderTimeline();
+  showToast("Interaction #" + rec.id + " updated");
+  return {status:"updated", interaction_id: rec.id, field, new_value: args.new_value};
+}
+function toolSearchHcp(args){
+  const q = (args.query||'').toLowerCase();
+  const matches = HCP_DB.filter(h=> h.name.toLowerCase().includes(q) || h.specialty.toLowerCase().includes(q));
+  if(matches.length && !args.no_autofill) document.getElementById('f_hcp').value = matches[0].name;
+  return {status:"ok", results: matches};
+}
+function toolAddMaterial(name){ currentMaterials.push(name); renderChipList('materialsList', currentMaterials, 'removeMaterial'); return {status:"added", material:name}; }
+function toolAddSample(name){ currentSamples.push(name); renderChipList('samplesList', currentSamples, 'removeSample'); return {status:"added", sample:name}; }
+function toolAddMaterialOrSample(args){ return args.kind==='sample' ? toolAddSample(args.name) : toolAddMaterial(args.name); }
+function toolSuggestFollowUp(args){
+  const items = args.suggestions || [];
+  const box = document.getElementById('aiFollowups');
+  const list = document.getElementById('aiFollowupItems');
+  list.innerHTML = items.map(s=>`<span class="suggest-pill" onclick="appendFollowup('${s.replace(/'/g,"\\'")}')">+ ${s}</span>`).join('');
+  box.style.display = items.length ? 'block' : 'none';
+  return {status:"ok", count: items.length};
+}
+function appendFollowup(text){
+  const el = document.getElementById('f_followup');
+  el.value = el.value ? el.value + "\n- " + text : "- " + text;
+}
+
+const TOOL_SCHEMA = [
+  { name:"log_interaction", description:"Log a new HCP interaction, extracting structured fields from the rep's free-text description.",
+    input_schema:{ type:"object", properties:{
+      hcp_name:{type:"string"}, interaction_type:{type:"string", enum:["Meeting","Call","Email","Conference","Sample Drop"]},
+      date:{type:"string", description:"YYYY-MM-DD, default today"}, time:{type:"string", description:"HH:MM 24h, default now"},
+      attendees:{type:"string"}, topics:{type:"string"}, sentiment:{type:"string", enum:["Positive","Neutral","Negative"]},
+      outcomes:{type:"string"}, follow_up_actions:{type:"string"}
+    }, required:["hcp_name","topics"] } },
+  { name:"edit_interaction", description:"Edit a field on a previously logged interaction by its id.",
+    input_schema:{ type:"object", properties:{
+      interaction_id:{type:"number"}, field:{type:"string", enum:["hcp","type","date","time","attendees","topics","outcomes","followup","sentiment"]}, new_value:{type:"string"}
+    }, required:["interaction_id","field","new_value"] } },
+  { name:"search_hcp", description:"Search the HCP database by name or specialty and optionally auto-fill the form.",
+    input_schema:{ type:"object", properties:{ query:{type:"string"}, no_autofill:{type:"boolean"} }, required:["query"] } },
+  { name:"add_material_or_sample", description:"Add a marketing material shared or a sample distributed during the interaction.",
+    input_schema:{ type:"object", properties:{ kind:{type:"string", enum:["material","sample"]}, name:{type:"string"} }, required:["kind","name"] } },
+  { name:"suggest_follow_up", description:"Propose 2-4 concrete follow-up actions based on the interaction context.",
+    input_schema:{ type:"object", properties:{ suggestions:{type:"array", items:{type:"string"}} }, required:["suggestions"] } }
+];
+
+function runTool(name, args){
+  switch(name){
+    case "log_interaction": return toolLogInteraction(args);
+    case "edit_interaction": return toolEditInteraction(args);
+    case "search_hcp": return toolSearchHcp(args);
+    case "add_material_or_sample": return toolAddMaterialOrSample(args);
+    case "suggest_follow_up": return toolSuggestFollowUp(args);
+    default: return {status:"error", message:"unknown tool"};
+  }
+}
+
+/* ---------------- CHAT ---------------- */
+function pushMsg(role, text){
+  const log = document.getElementById('chatLog');
+  const div = document.createElement('div');
+  div.className = 'msg ' + role;
+  div.innerHTML = `<div class="bubble">${text}</div>`;
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return div;
+}
+pushMsg('ai', "Hi! Describe an interaction — e.g. <em>\"Met Dr. Sharma, discussed Product X efficacy, positive sentiment, shared the brochure, follow up in 2 weeks\"</em> — and I'll log it. I can also edit past entries, search HCPs, or suggest follow-ups.");
+
+async function sendChat(){
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if(!text) return;
+  pushMsg('user', text);
+  input.value = '';
+
+  const systemPrompt = `You are the AI agent inside a pharma sales rep's "Log HCP Interaction" tool.
+Known HCPs: ${HCP_DB.map(h=>h.name+" ("+h.specialty+")").join(", ")}.
+Known materials: ${MATERIALS_DB.join(", ")}. Known samples: ${SAMPLES_DB.join(", ")}.
+Today's date is ${today()}.
+Use the available tools to log interactions, edit past ones, search HCPs, add materials/samples, and proactively suggest follow-ups after logging.
+Always call log_interaction when the rep describes a new interaction, then call suggest_follow_up with 2-3 relevant next steps.
+Keep any plain-text reply to the rep short (1-2 sentences).`;
+
+  let messages = [{role:"user", content: text}];
+  const thinkingEl = pushMsg('ai', '<span class="typing"><span></span><span></span><span></span></span>');
+
+  try{
+    let finalText = "";
+    let loopGuard = 0;
+    while(loopGuard++ < 5){
+      const resp = await fetch("https://api.anthropic.com/v1/messages", {
+        method:"POST", headers:{"Content-Type":"application/json"},
+        body: JSON.stringify({ model:"claude-sonnet-4-6", max_tokens:1000, system: systemPrompt, tools: TOOL_SCHEMA, messages })
+      });
+      const data = await resp.json();
+      if(data.error){ finalText = "Error: " + data.error.message; break; }
+
+      const toolUses = data.content.filter(c=>c.type==="tool_use");
+      const textParts = data.content.filter(c=>c.type==="text").map(c=>c.text).join(" ");
+      if(textParts) finalText = textParts;
+      if(toolUses.length===0) break;
+
+      messages.push({role:"assistant", content: data.content});
+      const toolResults = toolUses.map(tu=>{
+        const result = runTool(tu.name, tu.input);
+        pushMsg('tool', `🔧 ${tu.name}(${JSON.stringify(tu.input)})\n→ ${JSON.stringify(result)}`);
+        return {type:"tool_result", tool_use_id: tu.id, content: JSON.stringify(result)};
+      });
+      messages.push({role:"user", content: toolResults});
+    }
+    thinkingEl.querySelector('.bubble').innerHTML = finalText || "Done.";
+  }catch(err){
+    thinkingEl.querySelector('.bubble').innerText = "Error contacting AI: " + err.message;
+  }
+}
+</script>
+</body>
+</html>
